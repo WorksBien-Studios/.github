@@ -27,6 +27,7 @@ The template includes the workflow callers, a canonical `APP_IDENTITY.json`, gen
 2. If retrofitting an existing repository, add `.github/testflight-app-map.json` from `templates/testflight-app-map.example.json`.
 3. If retrofitting an existing repository, add `docs/app-store-listing-manifest.json` from `templates/app-store-listing-manifest.example.json`.
 4. Add the WorksBien starter workflows from GitHub Actions:
+   - WorksBien Release Contract
    - WorksBien iOS TestFlight
    - WorksBien App Store listing and submission
 5. Ensure the repo has a successful exact-SHA CI check whose name matches `required_check_name`.
