@@ -66,6 +66,13 @@ jobs:
         with:
           ref: ${{ inputs.validated_sha }}
 
+      - name: Check out WorksBien release helpers
+        uses: actions/checkout@v4
+        with:
+          repository: WorksBien-Studios/.github
+          ref: main
+          path: .worksbien-release
+
       - name: Confirm immutable request
         env:
           VALIDATED_SHA: ${{ inputs.validated_sha }}
@@ -232,7 +239,7 @@ jobs:
           key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
           umask 077
           printf '%s' "$ASC_PRIVATE_KEY" > "$key_path"
-          jwt="$(ruby scripts/asc_jwt.rb "$key_path" "$ASC_KEY_ID" "$ASC_ISSUER_ID")"
+          jwt="$(ruby .worksbien-release/scripts/asc_jwt.rb "$key_path" "$ASC_KEY_ID" "$ASC_ISSUER_ID")"
           curl --fail-with-body --silent --show-error -H "Authorization: Bearer $jwt" \
             "https://api.appstoreconnect.apple.com/v1/apps/$ASC_APP_ID" -o "$RUNNER_TEMP/app.json"
           python3 - "$RUNNER_TEMP/app.json" <<'PY'
