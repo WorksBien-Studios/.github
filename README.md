@@ -8,6 +8,8 @@ This repository is the organization-level release harness for WorksBien Studios 
 - Reusable App Store listing/submission workflow: `.github/workflows/ios-app-store.yml`
 - Starter workflow templates for app repos: `workflow-templates/`
 - Shared App Store Connect helpers: `scripts/asc_jwt.rb` and `scripts/asc_delivery.rb`
+- Listing/screenshot gate: `scripts/validate_listing_manifest.py`
+- Bootstrap and guardrail docs: `docs/app-store-connect-bootstrap.md`, `docs/release-secret-access.md`, and `docs/app-store-listing-gates.md`
 
 The app repos should call the reusable workflows through `@main` so central release fixes apply without per-repo SHA churn.
 
