@@ -1,0 +1,8 @@
+{
+  "name": "WorksBien App Store listing and submission",
+  "description": "Upload manifest-backed App Store metadata and submit an exact processed build for review.",
+  "iconName": "rocket",
+  "categories": [
+    "Deployment"
+  ]
+}
