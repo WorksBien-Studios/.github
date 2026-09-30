@@ -27,15 +27,31 @@
       "name": "App Name",
       "subtitle": "Clear search-focused subtitle",
       "promotional_text": "",
-      "description": "",
+      "description": "Describe the app truthfully, then include Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
       "keywords": [],
       "support_url": "https://worksbienstudios.com/apps/app/support/",
       "marketing_url": "https://worksbienstudios.com/apps/app/",
       "privacy_url": "https://worksbienstudios.com/apps/app/privacy/",
+      "eula_url": "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
       "whats_new": ""
     }
   ],
-  "screenshots": [],
+  "screenshots": [
+    {
+      "locale": "en-US",
+      "device": "iphone-6-7",
+      "position": 1,
+      "artifact_path": "store/screenshots/en-US/iphone-6-7/01.png",
+      "width": 1290,
+      "height": 2796,
+      "authentic_ui": false,
+      "dimensions_verified_against_current_apple_spec": false,
+      "display_appearance_checked": false,
+      "localized_copy_checked": false,
+      "claims_supported": false,
+      "no_other_platform_imagery": false
+    }
+  ],
   "review": {
     "contact_complete": false,
     "notes": ""
