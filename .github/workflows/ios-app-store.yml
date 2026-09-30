@@ -84,6 +84,17 @@ jobs:
           [[ "$MANIFEST_PATH" =~ ^[A-Za-z0-9_./-]+$ ]]
           [[ "$MANIFEST_PATH" != /* && "$MANIFEST_PATH" != *..* ]]
 
+      - name: Run listing, legal and screenshot gates
+        run: |
+          set -euo pipefail
+          python3 .worksbien-release/scripts/validate_listing_manifest.py "$MANIFEST_PATH" \
+            --app-map .github/testflight-app-map.json \
+            --operation "$STORE_OPERATION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --upload-screenshots "$UPLOAD_SCREENSHOTS" \
+            --confirm-submission "$CONFIRM_SUBMISSION" \
+            --build-number "$BUILD_NUMBER"
+
       - name: Validate manifest and materialize Fastlane files
         id: listing
         run: |
