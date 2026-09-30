@@ -104,6 +104,9 @@ jobs:
           if app_map.get('state') != 'ready' or app_map.get('repository') != os.environ['GITHUB_REPOSITORY']:
               raise SystemExit('App map is not ready for this repository.')
           app = manifest.get('app', {})
+          manifest_app_id = str(app.get('app_id', '')).strip()
+          if manifest_app_id and manifest_app_id != str(app_map.get('asc_app_id', '')).strip():
+              raise SystemExit('Listing App Store app ID does not match the release app map.')
           if app.get('bundle_id') != app_map.get('bundle_id'):
               raise SystemExit('Listing bundle ID does not match the release app map.')
           if str(app.get('version', '')) != str(app_map.get('marketing_version', '')):
