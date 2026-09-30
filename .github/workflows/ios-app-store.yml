@@ -254,12 +254,10 @@ jobs:
           PY
           fi
 
-      - name: Install pinned Fastlane
+      - name: Verify runner Fastlane
         run: |
           set -euo pipefail
-          gem install fastlane --version 2.237.0 --no-document --user-install
-          gem_bin="$(ruby -e 'print Gem.user_dir')/bin"
-          echo "$gem_bin" >> "$GITHUB_PATH"
+          deliver --version
 
       - name: Create ephemeral Fastlane API key file
         id: api-key
@@ -301,7 +299,7 @@ jobs:
           else
             args+=(--skip_screenshots true)
           fi
-          fastlane deliver "${args[@]}"
+          deliver "${args[@]}"
 
       - name: Submit exact attached build for App Review
         if: ${{ inputs.operation == 'submit_review' }}
@@ -312,7 +310,7 @@ jobs:
           MARKETING_VERSION: ${{ steps.listing.outputs.marketing_version }}
         run: |
           set -euo pipefail
-          fastlane deliver submit_build \
+          deliver submit_build \
             --api_key_path "$API_KEY_PATH" \
             --app_identifier "$IOS_BUNDLE_ID" \
             --app "$ASC_APP_ID" \
