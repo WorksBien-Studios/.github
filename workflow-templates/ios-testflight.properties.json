@@ -1,0 +1,6 @@
+{
+  "name": "WorksBien iOS TestFlight",
+  "description": "Build once, sign, upload, deliver to TestFlight, and attach the exact build to its listing.",
+  "iconName": "octicon rocket",
+  "categories": ["Deployment"]
+}
