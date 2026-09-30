@@ -174,12 +174,17 @@ jobs:
               if str(keywords).strip():
                   (target / 'keywords.txt').write_text(str(keywords).strip() + '\n', encoding='utf-8')
 
-          category = str(app.get('primary_category', '')).strip()
-          if category:
-              (metadata / 'primary_category.txt').write_text(category.upper().replace(' ', '_') + '\n', encoding='utf-8')
-          secondary = str(app.get('secondary_category', '')).strip()
-          if secondary:
-              (metadata / 'secondary_category.txt').write_text(secondary.upper().replace(' ', '_') + '\n', encoding='utf-8')
+          category_fields = (
+              'primary_category', 'primary_first_sub_category', 'primary_second_sub_category',
+              'secondary_category', 'secondary_first_sub_category', 'secondary_second_sub_category'
+          )
+          for field in category_fields:
+              value = str(app.get(field, '')).strip()
+              if value:
+                  (metadata / f'{field}.txt').write_text(
+                      value.upper().replace(' ', '_') + '\n',
+                      encoding='utf-8'
+                  )
           company = str(app.get('company_name', '')).strip()
           if company:
               (metadata / 'copyright.txt').write_text(f'2026 {company}\n', encoding='utf-8')
