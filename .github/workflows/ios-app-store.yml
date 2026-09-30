@@ -254,10 +254,13 @@ jobs:
           PY
           fi
 
-      - name: Verify runner Fastlane
+      - name: Install Fastlane CLI
         run: |
           set -euo pipefail
-          deliver --version
+          gem install fastlane --version 2.237.0 --no-document --user-install
+          gem_bin="$(ruby -e 'print Gem.user_dir')/bin"
+          test -x "$gem_bin/deliver"
+          echo "$gem_bin" >> "$GITHUB_PATH"
 
       - name: Create ephemeral Fastlane API key file
         id: api-key
