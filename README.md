@@ -13,6 +13,10 @@ This repository is the organization-level release harness for WorksBien Studios 
 
 The app repos should call the reusable workflows through `@main` so central release fixes apply without per-repo SHA churn.
 
+## Release operations
+
+Use `docs/worksbien-release-operations.md` as the organisation-wide operating guide for TestFlight, listing metadata, screenshot/image uploads, and review submission.
+
 ## Default new-repo path
 
 Create new iOS apps from the public template repository:
