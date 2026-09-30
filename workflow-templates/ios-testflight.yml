@@ -1,0 +1,22 @@
+name: TestFlight
+
+on:
+  push:
+    tags:
+      - "testflight-v*"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+
+jobs:
+  testflight:
+    uses: WorksBien-Studios/.github/.github/workflows/ios-testflight.yml@d7874aef0f95e6fe04defcca26d0a101b7cc3243
+    with:
+      validated_sha: ${{ github.sha }}
+    secrets:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
