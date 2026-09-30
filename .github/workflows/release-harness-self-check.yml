@@ -1,0 +1,119 @@
+name: Release harness self-check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-release-harness:
+    name: Validate release harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check helper scripts
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/validate_listing_manifest.py
+          ruby -c scripts/asc_jwt.rb
+          ruby -c scripts/asc_delivery.rb
+      - name: Exercise listing validator
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          mkdir -p "$tmp/.github" "$tmp/docs"
+          cat > "$tmp/.github/testflight-app-map.json" <<'JSON'
+          {
+            "schema_version": "1.0",
+            "state": "ready",
+            "repository": "WorksBien-Studios/example-app",
+            "bundle_id": "com.worksbienstudios.example",
+            "team_id": "49SQ3XQ68Q",
+            "asc_app_id": "1234567890",
+            "credential_alias": "worksbien-org-admin",
+            "asc_key_id": "63PRWU447P",
+            "asc_issuer_id": "9f49640c-f575-42b4-b0c7-8e3194aef419",
+            "private_key_secret_name": "ASC_PRIVATE_KEY",
+            "runtime_env": {
+              "key_id": "ASC_KEY_ID",
+              "issuer_id": "ASC_ISSUER_ID",
+              "private_key": "ASC_PRIVATE_KEY"
+            },
+            "beta_group_id": "123456",
+            "listing_platform": "IOS",
+            "marketing_version": "1.0",
+            "xcode_container_type": "project",
+            "xcode_container": "ios/App.xcodeproj",
+            "scheme": "App",
+            "required_check_name": "iOS build and test",
+            "signing_style": "automatic",
+            "export_method": "app-store-connect",
+            "signing_certificate": "Apple Distribution"
+          }
+          JSON
+          cat > "$tmp/docs/app-store-listing-manifest.json" <<'JSON'
+          {
+            "schema_version": "1.0",
+            "mode": "draft",
+            "app": {
+              "app_id": "1234567890",
+              "platform": "ios",
+              "bundle_id": "com.worksbienstudios.example",
+              "version": "1.0",
+              "company_name": "WorksBien Studios Inc.",
+              "release_kind": "new",
+              "primary_category": "Productivity"
+            },
+            "source_control": {
+              "fact_ledger_complete": true,
+              "facts_reconciled": true
+            },
+            "authorization": {
+              "live_submission_authorized": false
+            },
+            "human_review": {
+              "attested": false
+            },
+            "locales": [
+              {
+                "locale": "en-US",
+                "claims_supported": true,
+                "name": "Example App",
+                "subtitle": "Focused useful workflow",
+                "promotional_text": "",
+                "description": "Example truthful description. Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+                "keywords": ["example"],
+                "support_url": "https://worksbienstudios.com/apps/example/support/",
+                "marketing_url": "https://worksbienstudios.com/apps/example/",
+                "privacy_url": "https://worksbienstudios.com/apps/example/privacy/",
+                "eula_url": "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+                "whats_new": ""
+              }
+            ],
+            "screenshots": [],
+            "review": {
+              "contact_complete": false,
+              "notes": ""
+            },
+            "compliance_controls": {
+              "metadata_complete_accurate": { "status": "blocked" },
+              "screenshots_authentic_current": { "status": "blocked" },
+              "reviewer_access": { "status": "blocked" },
+              "legal_urls_live": { "status": "pass" },
+              "privacy_policy_matches_build": { "status": "blocked" },
+              "app_privacy_answers_match_build_and_sdks": { "status": "blocked" }
+            }
+          }
+          JSON
+          (
+            cd "$tmp"
+            python3 "$GITHUB_WORKSPACE/scripts/validate_listing_manifest.py" docs/app-store-listing-manifest.json \
+              --repo WorksBien-Studios/example-app \
+              --operation upload_listing \
+              --upload-screenshots false
+          )
