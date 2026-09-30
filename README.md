@@ -11,20 +11,29 @@ This repository is the organization-level release harness for WorksBien Studios 
 
 The app repos should call the reusable workflows through `@main` so central release fixes apply without per-repo SHA churn.
 
+## Default new-repo path
+
+Create new iOS apps from the public template repository:
+
+- `WorksBien-Studios/ios-app-template`
+
+The template includes the workflow callers, a canonical `APP_IDENTITY.json`, generated TestFlight/App Store files, and a sync check. For a new app, edit `APP_IDENTITY.json`, run `python3 scripts/materialize_release_contract.py`, commit the generated files, and switch `release_state` to `ready` only after the App Store Connect IDs, Xcode scheme/container, beta group, and listing data are real.
+
 ## New iOS repo checklist
 
-1. Add `.github/testflight-app-map.json` from `templates/testflight-app-map.example.json`.
-2. Add `docs/app-store-listing-manifest.json` from `templates/app-store-listing-manifest.example.json`.
-3. Add the WorksBien starter workflows from GitHub Actions:
+1. Prefer creating the repository from `WorksBien-Studios/ios-app-template`.
+2. If retrofitting an existing repository, add `.github/testflight-app-map.json` from `templates/testflight-app-map.example.json`.
+3. If retrofitting an existing repository, add `docs/app-store-listing-manifest.json` from `templates/app-store-listing-manifest.example.json`.
+4. Add the WorksBien starter workflows from GitHub Actions:
    - WorksBien iOS TestFlight
    - WorksBien App Store listing and submission
-4. Ensure the repo has a successful exact-SHA CI check whose name matches `required_check_name`.
-5. Confirm the App Store Connect app ID, bundle ID, beta group ID, team ID, and marketing version match across:
+5. Ensure the repo has a successful exact-SHA CI check whose name matches `required_check_name`.
+6. Confirm the App Store Connect app ID, bundle ID, beta group ID, team ID, and marketing version match across:
    - `.github/testflight-app-map.json`
    - `docs/app-store-listing-manifest.json`
    - Xcode project settings
    - App Store Connect
-6. Keep listing submission blocked until the manifest has `mode: "submission"`, human review is attested, and live submission is explicitly authorized.
+7. Keep listing submission blocked until the manifest has `mode: "submission"`, human review is attested, and live submission is explicitly authorized.
 
 ## Automatic lane contract
 
