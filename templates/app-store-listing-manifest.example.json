@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "mode": "draft",
+  "app": {
+    "app_id": "APP_STORE_CONNECT_APP_ID",
+    "platform": "ios",
+    "bundle_id": "com.worksbienstudios.app",
+    "version": "1.0",
+    "company_name": "WorksBien Studios Inc.",
+    "release_kind": "new",
+    "primary_category": "Productivity"
+  },
+  "source_control": {
+    "fact_ledger_complete": false,
+    "facts_reconciled": false
+  },
+  "authorization": {
+    "live_submission_authorized": false
+  },
+  "human_review": {
+    "attested": false
+  },
+  "locales": [
+    {
+      "locale": "en-US",
+      "claims_supported": false,
+      "name": "App Name",
+      "subtitle": "Clear search-focused subtitle",
+      "promotional_text": "",
+      "description": "",
+      "keywords": [],
+      "support_url": "https://worksbienstudios.com/apps/app/support/",
+      "marketing_url": "https://worksbienstudios.com/apps/app/",
+      "privacy_url": "https://worksbienstudios.com/apps/app/privacy/",
+      "whats_new": ""
+    }
+  ],
+  "screenshots": [],
+  "review": {
+    "contact_complete": false,
+    "notes": ""
+  },
+  "compliance_controls": {
+    "metadata_complete_accurate": { "status": "blocked" },
+    "screenshots_authentic_current": { "status": "blocked" },
+    "reviewer_access": { "status": "blocked" },
+    "legal_urls_live": { "status": "blocked" },
+    "privacy_policy_matches_build": { "status": "blocked" },
+    "app_privacy_answers_match_build_and_sdks": { "status": "blocked" }
+  }
+}
