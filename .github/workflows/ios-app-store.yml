@@ -1,0 +1,320 @@
+name: Reusable iOS App Store listing and submission
+
+on:
+  workflow_call:
+    inputs:
+      validated_sha:
+        description: Exact caller commit containing the approved listing manifest
+        required: true
+        type: string
+      operation:
+        description: upload_listing or submit_review
+        required: true
+        type: string
+      manifest_path:
+        description: Repository-relative App Store listing manifest
+        required: false
+        type: string
+        default: docs/app-store-listing-manifest.json
+      build_number:
+        description: Exact processed build number; required for submit_review
+        required: false
+        type: string
+        default: ""
+      upload_screenshots:
+        description: Upload the complete screenshot set declared by the manifest
+        required: false
+        type: boolean
+        default: false
+      confirm_submission:
+        description: Explicit confirmation required for submit_review
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      ASC_KEY_ID:
+        required: true
+      ASC_ISSUER_ID:
+        required: true
+      ASC_PRIVATE_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.repository }}-app-store
+  cancel-in-progress: false
+
+jobs:
+  app-store:
+    name: ${{ inputs.operation == 'submit_review' && 'Submit exact build for review' || 'Upload App Store listing' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+      CONFIRM_SUBMISSION: ${{ inputs.confirm_submission }}
+      MANIFEST_PATH: ${{ inputs.manifest_path }}
+      STORE_OPERATION: ${{ inputs.operation }}
+      UPLOAD_SCREENSHOTS: ${{ inputs.upload_screenshots }}
+    steps:
+      - name: Check out exact listing commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.validated_sha }}
+
+      - name: Confirm immutable request
+        env:
+          VALIDATED_SHA: ${{ inputs.validated_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$VALIDATED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$VALIDATED_SHA" ]]
+          [[ "$STORE_OPERATION" == upload_listing || "$STORE_OPERATION" == submit_review ]]
+          [[ "$MANIFEST_PATH" =~ ^[A-Za-z0-9_./-]+$ ]]
+          [[ "$MANIFEST_PATH" != /* && "$MANIFEST_PATH" != *..* ]]
+
+      - name: Validate manifest and materialize Fastlane files
+        id: listing
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib, shutil
+
+          root = pathlib.Path.cwd().resolve()
+          manifest_path = (root / os.environ['MANIFEST_PATH']).resolve()
+          if root not in manifest_path.parents or not manifest_path.is_file():
+              raise SystemExit('Listing manifest is missing or outside the repository.')
+
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          app_map = json.loads((root / '.github/testflight-app-map.json').read_text(encoding='utf-8'))
+          operation = os.environ['STORE_OPERATION']
+          upload_screenshots = os.environ['UPLOAD_SCREENSHOTS'].lower() == 'true'
+
+          if app_map.get('state') != 'ready' or app_map.get('repository') != os.environ['GITHUB_REPOSITORY']:
+              raise SystemExit('App map is not ready for this repository.')
+          app = manifest.get('app', {})
+          if app.get('bundle_id') != app_map.get('bundle_id'):
+              raise SystemExit('Listing bundle ID does not match the release app map.')
+          if str(app.get('version', '')) != str(app_map.get('marketing_version', '')):
+              raise SystemExit('Listing version does not match the release app map.')
+          source = manifest.get('source_control', {})
+          if not source.get('fact_ledger_complete') or not source.get('facts_reconciled'):
+              raise SystemExit('Listing facts are incomplete or conflicted.')
+
+          locales = manifest.get('locales', [])
+          if not locales:
+              raise SystemExit('No listing locales are declared.')
+          unsupported_claims = [x.get('locale', '?') for x in locales if not x.get('claims_supported')]
+          if unsupported_claims:
+              raise SystemExit('Unsupported listing claims remain in: ' + ', '.join(unsupported_claims))
+
+          if operation == 'submit_review':
+              if os.environ['CONFIRM_SUBMISSION'].lower() != 'true':
+                  raise SystemExit('submit_review requires confirm_submission=true.')
+              if manifest.get('mode') != 'submission':
+                  raise SystemExit('Submission requires manifest mode=submission.')
+              if not manifest.get('authorization', {}).get('live_submission_authorized'):
+                  raise SystemExit('Live submission is not authorized in the manifest.')
+              if not manifest.get('human_review', {}).get('attested'):
+                  raise SystemExit('Independent human review is not attested.')
+              build_number = os.environ['BUILD_NUMBER']
+              if not build_number.isdigit():
+                  raise SystemExit('An exact numeric build_number is required for submission.')
+              bad = []
+              for name, control in manifest.get('compliance_controls', {}).items():
+                  if control.get('status') not in ('pass', 'n_a'):
+                      bad.append(name)
+              if bad:
+                  raise SystemExit('Submission controls are not cleared: ' + ', '.join(bad))
+              if not manifest.get('review', {}).get('contact_complete'):
+                  raise SystemExit('Private reviewer contact is not confirmed in App Store Connect.')
+
+          locale_aliases = {
+              'ja-JP': 'ja', 'en': 'en-US', 'es': 'es-ES', 'fr': 'fr-FR',
+              'de': 'de-DE', 'ko-KR': 'ko', 'pt': 'pt-BR', 'nb-NO': 'no'
+          }
+          valid_locales = {
+              'ar-SA','bn-BD','ca','cs','da','de-DE','el','en-AU','en-CA','en-GB','en-US',
+              'es-ES','es-MX','fi','fr-CA','fr-FR','gu-IN','he','hi','hr','hu','id','it',
+              'ja','kn-IN','ko','ml-IN','mr-IN','ms','nl-NL','no','or-IN','pa-IN','pl',
+              'pt-BR','pt-PT','ro','ru','sk','sl-SI','sv','ta-IN','te-IN','th','tr','uk',
+              'ur-PK','vi','zh-Hans','zh-Hant'
+          }
+          work = pathlib.Path(os.environ['RUNNER_TEMP']) / 'worksbien-fastlane'
+          metadata = work / 'metadata'
+          screenshots_out = work / 'screenshots'
+          metadata.mkdir(parents=True, exist_ok=True)
+
+          file_map = {
+              'name': 'name.txt', 'subtitle': 'subtitle.txt', 'description': 'description.txt',
+              'promotional_text': 'promotional_text.txt', 'support_url': 'support_url.txt',
+              'marketing_url': 'marketing_url.txt', 'privacy_url': 'privacy_url.txt',
+              'whats_new': 'release_notes.txt'
+          }
+          locale_dirs = {}
+          for item in locales:
+              declared = str(item.get('locale', '')).strip()
+              locale = locale_aliases.get(declared, declared)
+              if locale not in valid_locales:
+                  raise SystemExit(f'Unsupported Fastlane locale: {declared}')
+              target = metadata / locale
+              target.mkdir(parents=True, exist_ok=True)
+              locale_dirs[declared] = locale
+              for key, filename in file_map.items():
+                  value = item.get(key)
+                  if value:
+                      (target / filename).write_text(str(value).strip() + '\n', encoding='utf-8')
+              keywords = item.get('keywords', [])
+              if isinstance(keywords, list):
+                  keywords = ','.join(str(x).strip() for x in keywords if str(x).strip())
+              if str(keywords).strip():
+                  (target / 'keywords.txt').write_text(str(keywords).strip() + '\n', encoding='utf-8')
+
+          category = str(app.get('primary_category', '')).strip()
+          if category:
+              (metadata / 'primary_category.txt').write_text(category.upper().replace(' ', '_') + '\n', encoding='utf-8')
+          secondary = str(app.get('secondary_category', '')).strip()
+          if secondary:
+              (metadata / 'secondary_category.txt').write_text(secondary.upper().replace(' ', '_') + '\n', encoding='utf-8')
+          company = str(app.get('company_name', '')).strip()
+          if company:
+              (metadata / 'copyright.txt').write_text(f'2026 {company}\n', encoding='utf-8')
+
+          if upload_screenshots:
+              status = manifest.get('compliance_controls', {}).get('screenshots_authentic_current', {}).get('status')
+              if status != 'pass':
+                  raise SystemExit('Screenshot upload requires screenshots_authentic_current=pass.')
+              declared_shots = manifest.get('screenshots', [])
+              copied = 0
+              for shot in declared_shots:
+                  if not all(shot.get(k) for k in ('authentic_ui','dimensions_verified_against_current_apple_spec','display_appearance_checked','localized_copy_checked','claims_supported','no_other_platform_imagery')):
+                      raise SystemExit('Every screenshot must pass authenticity, dimension, display, locale, claim and platform checks.')
+                  source_path = str(shot.get('artifact_path', '')).strip()
+                  source_file = (root / source_path).resolve()
+                  if not source_path or root not in source_file.parents or not source_file.is_file():
+                      raise SystemExit(f'Missing screenshot artifact: {source_path or "<empty>"}')
+                  locale = locale_dirs[str(shot.get('locale', '')).strip()]
+                  target_dir = screenshots_out / locale
+                  target_dir.mkdir(parents=True, exist_ok=True)
+                  position = int(shot.get('position', 0))
+                  device = str(shot.get('device', 'device')).lower()
+                  target = target_dir / f'{position:02d}-{device}{source_file.suffix.lower()}'
+                  shutil.copyfile(source_file, target)
+                  copied += 1
+              if copied == 0:
+                  raise SystemExit('Screenshot upload requested but no screenshots were declared.')
+
+          outputs = {
+              'app_id': app_map['asc_app_id'], 'bundle_id': app_map['bundle_id'],
+              'marketing_version': app_map['marketing_version'], 'metadata_path': str(metadata),
+              'screenshots_path': str(screenshots_out), 'upload_screenshots': str(upload_screenshots).lower()
+          }
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              for key, value in outputs.items(): out.write(f'{key}={value}\n')
+          PY
+
+      - name: Verify App Store Connect route and exact build
+        env:
+          ASC_APP_ID: ${{ steps.listing.outputs.app_id }}
+          IOS_BUNDLE_ID: ${{ steps.listing.outputs.bundle_id }}
+        run: |
+          set -euo pipefail
+          [[ -n "$ASC_KEY_ID" && -n "$ASC_ISSUER_ID" && -n "$ASC_PRIVATE_KEY" ]]
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          umask 077
+          printf '%s' "$ASC_PRIVATE_KEY" > "$key_path"
+          jwt="$(ruby scripts/asc_jwt.rb "$key_path" "$ASC_KEY_ID" "$ASC_ISSUER_ID")"
+          curl --fail-with-body --silent --show-error -H "Authorization: Bearer $jwt" \
+            "https://api.appstoreconnect.apple.com/v1/apps/$ASC_APP_ID" -o "$RUNNER_TEMP/app.json"
+          python3 - "$RUNNER_TEMP/app.json" <<'PY'
+          import json, os, sys
+          app=json.load(open(sys.argv[1]))['data']
+          if app['id'] != os.environ['ASC_APP_ID'] or app['attributes']['bundleId'] != os.environ['IOS_BUNDLE_ID']:
+              raise SystemExit('Authenticated App Store Connect route does not match the app map.')
+          PY
+          if [[ "$STORE_OPERATION" == submit_review ]]; then
+            curl --fail-with-body --silent --show-error --get -H "Authorization: Bearer $jwt" \
+              --data-urlencode "filter[app]=$ASC_APP_ID" --data-urlencode "filter[version]=$BUILD_NUMBER" \
+              --data-urlencode 'limit=5' 'https://api.appstoreconnect.apple.com/v1/builds' -o "$RUNNER_TEMP/builds.json"
+            python3 - "$RUNNER_TEMP/builds.json" <<'PY'
+          import json, os, sys
+          builds=json.load(open(sys.argv[1])).get('data', [])
+          exact=[b for b in builds if b.get('attributes',{}).get('version') == os.environ['BUILD_NUMBER']]
+          if len(exact) != 1: raise SystemExit('Exact App Store Connect build was not found uniquely.')
+          if exact[0].get('attributes',{}).get('processingState') != 'VALID': raise SystemExit('Exact build is not processed and valid.')
+          PY
+          fi
+
+      - name: Install pinned Fastlane
+        run: |
+          set -euo pipefail
+          gem install fastlane --version 2.237.0 --no-document
+
+      - name: Create ephemeral Fastlane API key file
+        id: api-key
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib
+          path=pathlib.Path(os.environ['RUNNER_TEMP'])/'asc-api-key.json'
+          path.write_text(json.dumps({'key_id':os.environ['ASC_KEY_ID'],'issuer_id':os.environ['ASC_ISSUER_ID'],'key':os.environ['ASC_PRIVATE_KEY'],'in_house':False}), encoding='utf-8')
+          path.chmod(0o600)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out: out.write(f'path={path}\n')
+          PY
+
+      - name: Upload listing metadata and optional screenshots
+        if: ${{ inputs.operation == 'upload_listing' }}
+        env:
+          API_KEY_PATH: ${{ steps.api-key.outputs.path }}
+          ASC_APP_ID: ${{ steps.listing.outputs.app_id }}
+          IOS_BUNDLE_ID: ${{ steps.listing.outputs.bundle_id }}
+          MARKETING_VERSION: ${{ steps.listing.outputs.marketing_version }}
+          METADATA_PATH: ${{ steps.listing.outputs.metadata_path }}
+          SCREENSHOTS_PATH: ${{ steps.listing.outputs.screenshots_path }}
+          SHOULD_UPLOAD_SCREENSHOTS: ${{ steps.listing.outputs.upload_screenshots }}
+        run: |
+          set -euo pipefail
+          args=(
+            --api_key_path "$API_KEY_PATH"
+            --app_identifier "$IOS_BUNDLE_ID"
+            --app "$ASC_APP_ID"
+            --app_version "$MARKETING_VERSION"
+            --platform ios
+            --metadata_path "$METADATA_PATH"
+            --skip_binary_upload true
+            --submit_for_review false
+            --force true
+          )
+          if [[ "$SHOULD_UPLOAD_SCREENSHOTS" == true ]]; then
+            args+=(--screenshots_path "$SCREENSHOTS_PATH" --skip_screenshots false --overwrite_screenshots true)
+          else
+            args+=(--skip_screenshots true)
+          fi
+          fastlane deliver "${args[@]}"
+
+      - name: Submit exact attached build for App Review
+        if: ${{ inputs.operation == 'submit_review' }}
+        env:
+          API_KEY_PATH: ${{ steps.api-key.outputs.path }}
+          ASC_APP_ID: ${{ steps.listing.outputs.app_id }}
+          IOS_BUNDLE_ID: ${{ steps.listing.outputs.bundle_id }}
+          MARKETING_VERSION: ${{ steps.listing.outputs.marketing_version }}
+        run: |
+          set -euo pipefail
+          fastlane deliver submit_build \
+            --api_key_path "$API_KEY_PATH" \
+            --app_identifier "$IOS_BUNDLE_ID" \
+            --app "$ASC_APP_ID" \
+            --app_version "$MARKETING_VERSION" \
+            --build_number "$BUILD_NUMBER" \
+            --platform ios \
+            --submit_for_review true \
+            --automatic_release false \
+            --skip_binary_upload true \
+            --skip_metadata true \
+            --skip_screenshots true \
+            --force true
