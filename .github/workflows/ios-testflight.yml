@@ -12,6 +12,11 @@ on:
         required: false
         type: string
         default: ""
+      minimum_build_number:
+        description: Optional build-number floor for app-record resets or TestFlight cache recovery
+        required: false
+        type: number
+        default: 0
     secrets:
       ASC_KEY_ID:
         required: true
@@ -131,6 +136,7 @@ jobs:
         id: build
         env:
           ASC_APP_ID: ${{ steps.map.outputs.app_id }}
+          MINIMUM_BUILD_NUMBER: ${{ inputs.minimum_build_number }}
         run: |
           set -euo pipefail
           key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
@@ -140,7 +146,8 @@ jobs:
           import json,sys
           values=[x.get('attributes',{}).get('version','') for x in json.load(open(sys.argv[1])).get('data',[])]
           nums=[int(v) for v in values if v.isdigit()]
-          print((max(nums) if nums else 0)+1)
+          floor=int(__import__('os').environ.get('MINIMUM_BUILD_NUMBER') or 0)
+          print(max(max(nums) if nums else 0, floor-1)+1)
           PY
           )"
           echo "build_number=$build_number" >> "$GITHUB_OUTPUT"
