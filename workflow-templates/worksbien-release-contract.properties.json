@@ -1,0 +1,6 @@
+{
+  "name": "WorksBien Release Contract",
+  "description": "Checks that APP_IDENTITY.json and generated release files stay in sync.",
+  "iconName": "octicon-check-circle",
+  "categories": ["Automation", "Deployment", "Swift"]
+}
