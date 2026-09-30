@@ -1,0 +1,20 @@
+name: WorksBien Release Contract
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generated-files:
+    name: Generated release files are current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check generated release contract
+        run: python3 scripts/materialize_release_contract.py --check
