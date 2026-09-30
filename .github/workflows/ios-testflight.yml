@@ -58,6 +58,13 @@ jobs:
         with:
           ref: ${{ inputs.validated_sha }}
 
+      - name: Check out WorksBien release helpers
+        uses: actions/checkout@v4
+        with:
+          repository: WorksBien-Studios/.github
+          ref: main
+          path: .worksbien-release
+
       - name: Confirm immutable release request
         env:
           VALIDATED_SHA: ${{ inputs.validated_sha }}
@@ -112,7 +119,7 @@ jobs:
           [[ "$ASC_ISSUER_ID" == "$MAP_ISSUER_ID" && "$ASC_ISSUER_ID" == "$EXPECTED_ASC_ISSUER_ID" ]]
           key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
           umask 077; printf '%s' "$ASC_PRIVATE_KEY" > "$key_path"
-          jwt="$(ruby scripts/asc_jwt.rb "$key_path" "$ASC_KEY_ID" "$ASC_ISSUER_ID")"
+          jwt="$(ruby .worksbien-release/scripts/asc_jwt.rb "$key_path" "$ASC_KEY_ID" "$ASC_ISSUER_ID")"
           curl --fail-with-body --silent --show-error -H "Authorization: Bearer $jwt" "https://api.appstoreconnect.apple.com/v1/apps/$ASC_APP_ID" -o "$RUNNER_TEMP/app.json"
           python3 - "$RUNNER_TEMP/app.json" <<'PY'
           import json, os, sys
@@ -127,7 +134,7 @@ jobs:
         run: |
           set -euo pipefail
           key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
-          jwt="$(ruby scripts/asc_jwt.rb "$key_path" "$ASC_KEY_ID" "$ASC_ISSUER_ID")"
+          jwt="$(ruby .worksbien-release/scripts/asc_jwt.rb "$key_path" "$ASC_KEY_ID" "$ASC_ISSUER_ID")"
           curl --fail-with-body --silent --show-error --get -H "Authorization: Bearer $jwt" --data-urlencode "filter[app]=$ASC_APP_ID" --data-urlencode 'sort=-uploadedDate' --data-urlencode 'limit=50' 'https://api.appstoreconnect.apple.com/v1/builds' -o "$RUNNER_TEMP/builds.json"
           build_number="$(python3 - "$RUNNER_TEMP/builds.json" <<'PY'
           import json,sys
@@ -245,8 +252,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.validated_sha }}
+
+      - name: Check out WorksBien release helpers
+        uses: actions/checkout@v4
+        with:
+          repository: WorksBien-Studios/.github
+          ref: main
+          path: .worksbien-release
       - name: Process, deliver and attach exact build
         run: |
           set -euo pipefail
           key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"; umask 077; printf '%s' "$ASC_PRIVATE_KEY" > "$key_path"; chmod 600 "$key_path"
-          ASC_KEY_PATH="$key_path" ruby scripts/asc_delivery.rb
+          ASC_KEY_PATH="$key_path" ruby .worksbien-release/scripts/asc_delivery.rb
