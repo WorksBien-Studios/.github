@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "state": "ready",
+  "repository": "WorksBien-Studios/REPO_NAME",
+  "bundle_id": "com.worksbienstudios.app",
+  "team_id": "49SQ3XQ68Q",
+  "asc_app_id": "APP_STORE_CONNECT_APP_ID",
+  "credential_alias": "worksbien-org-admin",
+  "asc_key_id": "63PRWU447P",
+  "asc_issuer_id": "9f49640c-f575-42b4-b0c7-8e3194aef419",
+  "private_key_secret_name": "ASC_PRIVATE_KEY",
+  "runtime_env": {
+    "key_id": "ASC_KEY_ID",
+    "issuer_id": "ASC_ISSUER_ID",
+    "private_key": "ASC_PRIVATE_KEY"
+  },
+  "beta_group_id": "APP_SPECIFIC_BETA_GROUP_ID",
+  "listing_platform": "IOS",
+  "marketing_version": "1.0",
+  "xcode_container_type": "project",
+  "xcode_container": "ios/App.xcodeproj",
+  "scheme": "App",
+  "required_check_name": "iOS build and test",
+  "signing_style": "automatic",
+  "export_method": "app-store-connect",
+  "signing_certificate": "Apple Distribution"
+}
